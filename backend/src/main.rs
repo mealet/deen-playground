@@ -1,7 +1,9 @@
 use axum::{
+    http::Method,
     routing::post,
     Router
 };
+use tower_http::cors::{Any, CorsLayer};
 use std::sync::Arc;
 use tokio::{io::AsyncReadExt, process::Command};
 use std::{process::Stdio, error::Error};
@@ -43,10 +45,17 @@ async fn main() {
         log::error!("Unable to resolve docker:\n{err}");
     });
 
-    // setting up axum app
+    // setting up app
     let pool = runner::ContainerPool::new(50);
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::POST])
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/execute", post(server::execute_handler))
+        .layer(cors)
         .with_state(Arc::new(pool));
 
     let listener = tokio::net::TcpListener::bind(ENDPOINT).await.unwrap();

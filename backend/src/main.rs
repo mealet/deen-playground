@@ -61,5 +61,5 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(ENDPOINT).await.unwrap();
 
     log::info!("Listening on http://{ENDPOINT}...");
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service()).await.unwrap();
 }

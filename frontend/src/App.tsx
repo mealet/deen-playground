@@ -4,7 +4,8 @@ import Editor from "@monaco-editor/react";
 // WARNING: This code mostly is written with help from AI! Backend part is written by human.
 
 function App() {
-	const EXECUTION_ENDPOINT = "http://localhost:3000/execute";
+	const API_URL = "https://8b36daf3cd6368.lhr.life";
+	const EXECUTION_ENDPOINT = `${API_URL}/execute`;
 	const STORAGE_KEY = "deen_playground_code";
 	const DEFAULT_CODE = `\
 fn main() i32 {

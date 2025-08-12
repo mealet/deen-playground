@@ -171,10 +171,10 @@ fn main() i32 {
 
 	return (
 		<div style={containerStyle}>
-			{/* Header Panel - только на мобильных */}
+			{/* Header Panel - Mobile Only */}
 			{isMobile && (
 				<div style={headerStyle}>
-					<p style={headerTextStyle}>Deen Playground</p>
+					<p style={headerTextStyle}>Deen Language Playground</p>
 					<button
 						onClick={handleRun}
 						disabled={isRunning}
@@ -199,10 +199,10 @@ fn main() i32 {
 
 			{/* Right Panel */}
 			<div style={rightPanelStyle}>
-				{/* Header Panel - только на ПК */}
+				{/* Header Panel - PC Only */}
 				{!isMobile && (
 					<div style={headerStyle}>
-						<p style={headerTextStyle}>Deen Playground</p>
+						<p style={headerTextStyle}>Deen Language Playground</p>
 						<button
 							onClick={handleRun}
 							disabled={isRunning}

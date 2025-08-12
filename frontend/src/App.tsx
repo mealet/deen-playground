@@ -1,125 +1,164 @@
-import React from "react";
-import ReactDOM from "react-dom";
-
+import React, { useState } from "react";
 import Editor from "@monaco-editor/react";
-import { useState } from "react";
+
+// WARNING: This code mostly is written with help from AI! Backend part is written by human.
 
 function App() {
-	const EXECUTION_ENDPOINT = "localhost:3000/execute";
+	const EXECUTION_ENDPOINT = "http://d093de8ff86509.lhr.life/execute";
 	const DEFAULT_CODE = `\
 fn main() i32 {
-
   println!("Hello, World!");
-
   return 0;
-}
-  `;
+}`;
 
+	const [code, setCode] = useState(DEFAULT_CODE);
 	const [input, setInput] = useState("");
-	const [output, setOutput] = useState("Press `Run` to see output");
+	const [output, setOutput] = useState("Press 'Run' to see output");
+	const [isRunning, setIsRunning] = useState(false);
+
+	const handleRun = async () => {
+		setIsRunning(true);
+		setOutput("Executing...");
+
+		console.log("Sending to", EXECUTION_ENDPOINT);
+
+		try {
+			const response = await fetch(EXECUTION_ENDPOINT, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ code, input }),
+			});
+
+			const result = await response.json();
+			setOutput(result.output || result.error || "No output");
+		} catch (error) {
+			setOutput(`Error: ${error.message}`);
+		} finally {
+			setIsRunning(false);
+		}
+	};
 
 	return (
 		<div
 			style={{
 				display: "grid",
-				gridTemplateColumns: "4fr 1fr",
-				gridTemplateRows: "auto auto",
+				gridTemplateColumns: "3fr 1fr",
+				gridTemplateRows: "1fr",
+				width: "100%",
 				height: "100vh",
 				gap: "10px",
 				boxSizing: "border-box",
-				// padding: "10px",
+				padding: "10px",
+				backgroundColor: "#1e1e1e",
 			}}
 		>
 			{/* Code Editor */}
 			<div
 				style={{
 					gridColumn: "1",
-					gridRow: "1 / span 3",
-					border: "1px solid #ccc",
+					gridRow: "1",
+					border: "1px solid #444",
 					borderRadius: "4px",
 					overflow: "hidden",
 				}}
 			>
 				<Editor
-					width="100vh"
 					height="100%"
-					defaultLanguage="javascript"
-					defaultValue={DEFAULT_CODE}
+					defaultLanguage="rust"
+					value={code}
+					onChange={(value) => setCode(value || "")}
 					theme="vs-dark"
 					options={{
 						minimap: { enabled: false },
 						scrollBeyondLastLine: false,
 						fontSize: 14,
+						automaticLayout: true,
 					}}
 				/>
 			</div>
 
-			{/* Output */}
+			{/* Right Panel */}
 			<div
 				style={{
-					display: "grid",
-					gridTemplateColumns: "auto",
-					gridTemplateRows: "1fr 10fr 1fr",
-					width: "100vh",
+					display: "flex",
+					flexDirection: "column",
 					gridColumn: "2",
-					gridRow: "1 / span 3",
-					border: "1px solid #ccc",
-					borderRadius: "4px",
-					padding: "10px",
-					gap: "5px",
-					backgroundColor: "#1e1e1e",
-					color: "#fff",
-					overflow: "auto",
+					gridRow: "1",
+					gap: "10px",
 				}}
 			>
-				{/* Panel */}
+				{/* Header Panel */}
 				<div
 					style={{
 						display: "flex",
 						justifyContent: "space-between",
 						alignItems: "center",
-						// width: "100%",
-						border: "1px solid #ccc",
+						padding: "10px",
+						border: "1px solid #444",
 						borderRadius: "4px",
-						padding: "5px",
+						backgroundColor: "#252526",
 					}}
 				>
-					<p
-						style={{
-							fontFamily: "sans-serif",
-							fontSize: "1.3em",
-							marginLeft: "10px",
-						}}
-					>
-						Deen Playground
-					</p>
-
+					<p style={{ margin: 0, color: "#fff" }}>Deen Playground</p>
 					<button
+						onClick={handleRun}
+						disabled={isRunning}
 						style={{
-							backgroundColor: "#3b74a3",
+							padding: "8px 16px",
+							backgroundColor: isRunning ? "#555" : "#3b74a3",
+							color: "white",
+							border: "none",
+							borderRadius: "4px",
+							cursor: "pointer",
+							fontWeight: "bold",
 						}}
 					>
-						Run
+						{isRunning ? "Running..." : "Run"}
 					</button>
 				</div>
 
 				{/* Output */}
 				<div
 					style={{
-						border: "1px solid #ccc",
+						flex: 1,
+						padding: "10px",
+						border: "1px solid #444",
 						borderRadius: "4px",
+						backgroundColor: "#1e1e1e",
+						color: "#fff",
+						overflow: "auto",
+						fontFamily: "monospace",
+						whiteSpace: "pre-wrap",
 					}}
 				>
-					<pre></pre>
+					{output}
 				</div>
 
 				{/* Input */}
 				<div
 					style={{
-						border: "1px solid #ccc",
-						borderRadius: "4px",
+						display: "flex",
+						flexDirection: "column",
+						gap: "5px",
 					}}
-				></div>
+				>
+					<label style={{ color: "#fff" }}>Input:</label>
+					<textarea
+						value={input}
+						onChange={(e) => setInput(e.target.value)}
+						style={{
+							minHeight: "80px",
+							padding: "8px",
+							borderRadius: "4px",
+							border: "1px solid #444",
+							backgroundColor: "#252526",
+							color: "#fff",
+							resize: "vertical",
+						}}
+					/>
+				</div>
 			</div>
 		</div>
 	);

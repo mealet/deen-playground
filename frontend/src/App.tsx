@@ -1,20 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 
 // WARNING: This code mostly is written with help from AI! Backend part is written by human.
 
 function App() {
-	const EXECUTION_ENDPOINT = "http://d093de8ff86509.lhr.life/execute";
+	const EXECUTION_ENDPOINT = "http://localhost:3000/execute";
+	const STORAGE_KEY = "deen_playground_code";
 	const DEFAULT_CODE = `\
 fn main() i32 {
   println!("Hello, World!");
   return 0;
 }`;
 
-	const [code, setCode] = useState(DEFAULT_CODE);
+	const [code, setCode] = useState(() => {
+		const savedCode = localStorage.getItem(STORAGE_KEY);
+		return savedCode || DEFAULT_CODE;
+	});
 	const [input, setInput] = useState("");
 	const [output, setOutput] = useState("Press 'Run' to see output");
 	const [isRunning, setIsRunning] = useState(false);
+
+	useEffect(() => {
+		localStorage.setItem(STORAGE_KEY, code);
+	}, [code]);
 
 	const handleRun = async () => {
 		setIsRunning(true);

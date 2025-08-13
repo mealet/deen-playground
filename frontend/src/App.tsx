@@ -4,8 +4,11 @@ import Editor from "@monaco-editor/react";
 // WARNING: This code mostly is written with help from AI! Backend part is written by human.
 
 function App() {
-	const API_URL = "https://8b36daf3cd6368.lhr.life";
-	const EXECUTION_ENDPOINT = `${API_URL}/execute`;
+	const API_PROTOCOL = "http";
+	const API_URL = "localhost:3000";
+	const EXECUTION_ENDPOINT = `${API_PROTOCOL}://${API_URL}/execute`;
+	const KILL_ENDPOINT = `${API_PROTOCOL}://${API_URL}/kill`;
+
 	const STORAGE_KEY = "deen_playground_code";
 	const DEFAULT_CODE = `\
 fn main() i32 {
@@ -22,6 +25,8 @@ fn main() i32 {
 	const [isRunning, setIsRunning] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
 
+	const [session, setSession] = useState("");
+
 	useEffect(() => {
 		localStorage.setItem(STORAGE_KEY, code);
 	}, [code]);
@@ -37,7 +42,17 @@ fn main() i32 {
 		return () => window.removeEventListener("resize", checkScreenSize);
 	}, []);
 
+	const handleStop = async () => {
+		const response = await fetch(`${KILL_ENDPOINT}/${session}`, {
+			method: "POST",
+		});
+	};
+
 	const handleRun = async () => {
+		if (isRunning) {
+			return;
+		}
+
 		setIsRunning(true);
 		setOutput("Executing...");
 		console.log("Sending to", EXECUTION_ENDPOINT);
@@ -50,11 +65,38 @@ fn main() i32 {
 				},
 				body: JSON.stringify({ code, input }),
 			});
-			const result = await response.json();
-			setOutput(result.output || result.error || "No output");
+			const data = await response.json();
+
+			if (!data.success) {
+				setOutput(`Error: ${data.session_id}`);
+				return;
+			}
+
+			console.log(`Execution started, session ID: \`${data.session_id}\``);
+			setSession(data.session_id);
+
+			const ws = new WebSocket(`ws://${API_URL}/ws/${data.session_id}`);
+
+			ws.onopen = function () {
+				setOutput("");
+				console.log(`WebSocket \`${data.session_id}\` opened`);
+			};
+
+			ws.onmessage = function (event) {
+				setOutput((prevOutput) => prevOutput + event.data + "\n");
+				console.log(event.data);
+			};
+
+			ws.onclose = function () {
+				console.log(`WebSocket \`${data.session_id}\` closed`);
+				setIsRunning(false);
+			};
+
+			ws.onerror = function (error) {
+				console.error(`WebSocket error: ${error}`);
+			};
 		} catch (error) {
 			setOutput(`Error: ${error.message}`);
-		} finally {
 			setIsRunning(false);
 		}
 	};
@@ -110,6 +152,18 @@ fn main() i32 {
 	const runButtonStyle = {
 		padding: isMobile ? "6px 12px" : "8px 16px",
 		backgroundColor: isRunning ? "#555" : "#3b74a3",
+		color: "white",
+		border: "none",
+		borderRadius: "4px",
+		cursor: "pointer",
+		fontWeight: "bold",
+		fontSize: isMobile ? "12px" : "14px",
+		minWidth: isMobile ? "70px" : "auto",
+	};
+
+	const stopButtonStyle = {
+		padding: isMobile ? "6px 12px" : "8px 16px",
+		backgroundColor: !isRunning ? "#555" : "#3b74a3",
 		color: "white",
 		border: "none",
 		borderRadius: "4px",
@@ -204,13 +258,28 @@ fn main() i32 {
 				{!isMobile && (
 					<div style={headerStyle}>
 						<p style={headerTextStyle}>Deen Language Playground</p>
-						<button
-							onClick={handleRun}
-							disabled={isRunning}
-							style={runButtonStyle}
+
+						<div
+							style={{
+								display: "flex",
+								gap: "10px",
+							}}
 						>
-							{isRunning ? "Running..." : "Run"}
-						</button>
+							<button
+								onClick={handleStop}
+								style={stopButtonStyle}
+								disabled={!isRunning}
+							>
+								Stop
+							</button>
+							<button
+								onClick={handleRun}
+								disabled={isRunning}
+								style={runButtonStyle}
+							>
+								{isRunning ? "Running..." : "Run"}
+							</button>
+						</div>
 					</div>
 				)}
 

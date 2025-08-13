@@ -64,6 +64,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/execute", post(server::execute_handler))
+        .route("/kill/{session_id}", post(server::stop_handler))
         .route("/ws/{session_id}", get(server::websocket_handler))
         .layer(cors)
         .with_state((sessions, semaphore));

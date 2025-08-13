@@ -59,7 +59,7 @@ pub async fn execute_handler(
     let session_id_cloned = session_id.clone();
 
     tokio::spawn(async move {
-        let result = execute_code(payload.code, payload.input, tx).await;
+        let result = execute_code(payload.code, payload.input, tx, &session_id_cloned).await;
 
         // removing session
         {
@@ -79,6 +79,25 @@ pub async fn execute_handler(
             session_id
         })
     )
+}
+
+pub async fn stop_handler(
+    State((sessions, _)): State<(ExecutionSessions, ExecutionSemaphore)>,
+    Path(session_id): Path<String>
+) -> impl IntoResponse {
+    // verification if session exist
+    {
+        let sessions_guard = sessions.read().await;
+        if !sessions_guard.contains_key(&session_id) {
+            return StatusCode::NOT_FOUND;
+        }
+    }
+
+    if kill_container(session_id).await.is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    return StatusCode::OK;
 }
 
 pub async fn websocket_handler(
@@ -114,7 +133,33 @@ async fn handle_socket(
     let _ = socket.send(Message::Close(None));
 }
 
-async fn execute_code(code: String, input: String, output_sender: broadcast::Sender<String>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn kill_container(uuid: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error>> {
+    let uuid = uuid.as_ref();
+
+    let mut child = Command::new("docker")
+        .args(&[
+            "kill", uuid
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let status = child.wait().await?;
+
+    if status.success() {
+        log::warn!("Killed container: `{uuid}`");
+        return Ok(());
+    }
+
+    return Err(format!("Failed to kill container `{uuid}`: {status}").into())
+}
+
+async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_sender: broadcast::Sender<String>, uuid: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let input = input.as_ref().to_owned();
+    let code = code.as_ref();
+    let uuid = uuid.as_ref();
+
     let temp_dir = tempfile::tempdir()?;
     let input_path = temp_dir.path().join("source.dn");
 
@@ -124,13 +169,14 @@ async fn execute_code(code: String, input: String, output_sender: broadcast::Sen
     let mut child = Command::new("docker")
         .args(&[
             "run", "-i", "--rm",
+            "--name", uuid,
             "--cpus", "1",
             "--memory", "512m",
             "--network", "none",
             "-v", &format!("{}:/sandbox/source.dn:ro", input_path.display()),
             "deen",
             "sh", "-c",
-            "(deen source.dn output && echo '' && ./output) 2>&1"
+            "(deen source.dn output && echo '') && (./output & sleep 15; echo 'RUNNER: 15 seconds runtime expired, exiting...' && kill $!)  2>&1"
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

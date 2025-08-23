@@ -215,7 +215,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
             let mut lines = reader.lines();
             
             while let Ok(Some(line)) = lines.next_line().await {
-                let _ = stderr_sender.send(format!("ERROR: {}", line));
+                let _ = stderr_sender.send(line);
             }
         }
     });

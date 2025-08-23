@@ -1,4 +1,4 @@
-name: deen-playground
+name: DEEN-PLAYGROUND
 
 services:
   deen-playground-backend:
@@ -20,6 +20,7 @@ services:
       context: frontend
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+    container_name: deen-playground-frontend
     ports:
       - 80:80
     volumes:

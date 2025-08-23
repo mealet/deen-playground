@@ -176,7 +176,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
             "-v", &format!("{}:/sandbox/source.dn:ro", input_path.display()),
             "deen",
             "sh", "-c",
-            "(deen ./source.dn output && echo '') && (./output & sleep 15; echo 'RUNNER: 15 seconds runtime expired, exiting...' && kill $!)  2>&1"
+            "(deen ./source.dn output && echo '') && (timeout 15s ./output; CODE=$?; if [ $CODE -eq 124 ]; then echo 'RUNNER: 15 seconds runtime expired, exiting...' >&2 && exit 1; else echo -e '\\nProcess finished with code: '$CODE; fi)  2>&1"
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

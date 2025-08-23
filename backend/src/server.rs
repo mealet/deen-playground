@@ -160,12 +160,12 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
     let code = code.as_ref();
     let uuid = uuid.as_ref();
 
-    let temp_dir = tempfile::tempdir()?;
+    let temp_dir = tempfile::tempdir_in("/tmp/deen-playground")?;
     let input_path = temp_dir.path().join("source.dn");
 
     log::info!("Starting execution of `{}`...", temp_dir.path().display());
     tokio::fs::write(&input_path, code).await?;
-
+    
     let mut child = Command::new("docker")
         .args(&[
             "run", "-i", "--rm",
@@ -176,7 +176,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
             "-v", &format!("{}:/sandbox/source.dn:ro", input_path.display()),
             "deen",
             "sh", "-c",
-            "(deen source.dn output && echo '') && (./output & sleep 15; echo 'RUNNER: 15 seconds runtime expired, exiting...' && kill $!)  2>&1"
+            "(deen ./source.dn output && echo '') && (./output & sleep 15; echo 'RUNNER: 15 seconds runtime expired, exiting...' && kill $!)  2>&1"
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

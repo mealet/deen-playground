@@ -1,12 +1,36 @@
+name: deen-playground
+
 services:
   deen-playground-backend:
-    build: backend/.
+    build: backend
     container_name: deen-playground-backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    user: "root"
+      - /tmp/deen-playground:/tmp/deen-playground
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
     ports:
       - 3000:3000
     restart: unless-stopped
+    networks:
+      - playground-network
+
+  deen-playground-frontend:
+    build:
+      context: frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - 80:80
+    volumes:
+      - ./frontend:/app
+      - ./frontend/node_modules:/app/node_modules
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - playground-network
+
+networks:
+  playground-network:
+    driver: bridge

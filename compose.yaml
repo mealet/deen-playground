@@ -1,0 +1,12 @@
+services:
+  deen-playground-backend:
+    build: backend/.
+    container_name: deen-playground-backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: "root"
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - 3000:3000
+    restart: unless-stopped

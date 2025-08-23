@@ -1,18 +1,11 @@
-FROM archlinux:base-devel
-COPY ./compiler/deen /usr/local/bin
-RUN chmod +x /usr/local/bin/deen
+FROM rust:1.88
 
-COPY ./compiler/stdlib /sandbox/stdlib
-ENV DEEN_LIB="/sandbox/stdlib"
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
+  sh get-docker.sh && \
+  rm get-docker.sh
 
-RUN groupadd -r sandbox && \
-  useradd -r -g sandbox -d /sandbox -s /sbin/nologin sandbox && \
-  mkdir -p /sandbox && \
-  chown sandbox:sandbox /sandbox
+WORKDIR /app
+COPY . .
+RUN cargo build --release
 
-WORKDIR /sandbox
-RUN chmod 777 /sandbox
-USER sandbox:sandbox
-
-# ENTRYPOINT ["deen"]
-CMD ["deen", "source.dn", "output", "&&", "echo -e '\nRUNNING COMPILED BINARY:\n'", "&&", "./output"]
+CMD ["./target/release/backend"]

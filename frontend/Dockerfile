@@ -1,5 +1,7 @@
 FROM node:24-alpine AS development
 
+RUN npm install -g vite
+
 WORKDIR /app
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile

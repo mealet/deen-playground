@@ -41,11 +41,35 @@ async fn verify_docker() -> Result<(), Box<dyn Error>> {
     return Ok(());
 }
 
+async fn build_docker_image() -> Result<(), Box<dyn Error>> {
+    let child = Command::new("docker")
+        .args(&["build", "-t", "deen", "compiler/."])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let output = child.wait_with_output().await?;
+
+    if !output.stdout.is_empty() {
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+
+    if !output.stderr.is_empty() {
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    if !output.status.success() {
+        return Err(format!("Image build failed").into());
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     // logger initialization
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
-    log::info!("Starting playground...");
+    log::info!("Verifying docker...");
 
     // verifying docker
     verify_docker().await.unwrap_or_else(|err| {
@@ -53,7 +77,16 @@ async fn main() {
         std::process::exit(1);
     });
 
+    // building up image
+    log::info!("Building executor image...");
+    build_docker_image().await.unwrap_or_else(|err| {
+        log::error!("Unable to build image:\n{err}");
+        std::process::exit(1);
+    });
+
     // setting up
+    log::info!("Starting playground backend...");
+
     let sessions: ExecutionSessions = Arc::new(RwLock::new(HashMap::new()));
     let semaphore: ExecutionSemaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_EXECUTIONS));
 

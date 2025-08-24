@@ -1,5 +1,5 @@
 # ☘️ Deen Playground
-**Deen Playground** is a fullstack web application which provides toolset for online execution binary code provided by [Deen](https://github.com/mealet/deen). <br/>
+**Deen Playground** is a fullstack web application which provides online [Deen](https://github.com/mealet/deen) execution. <br/>
 Project includes REST API for code execution and frontend page with code editor and controller panel.
 
 ## 🛠️ Usage

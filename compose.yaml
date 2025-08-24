@@ -9,8 +9,8 @@ services:
       - /tmp/deen-playground:/tmp/deen-playground
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
-    ports:
-      - 3000:3000
+    expose:
+      - 3000
     restart: unless-stopped
     networks:
       - playground-network
@@ -31,6 +31,9 @@ services:
     restart: unless-stopped
     networks:
       - playground-network
+
+    depends_on:
+      - deen-playground-backend
 
 networks:
   playground-network:

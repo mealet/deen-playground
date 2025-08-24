@@ -4,10 +4,16 @@ import Editor from "@monaco-editor/react";
 // WARNING: This code mostly is written with help from AI! Backend part is written by human.
 
 function App() {
-	const API_PROTOCOL = "http";
-	const API_URL = "localhost:3000";
-	const EXECUTION_ENDPOINT = `${API_PROTOCOL}://${API_URL}/execute`;
-	const KILL_ENDPOINT = `${API_PROTOCOL}://${API_URL}/kill`;
+	const API_BASE_URL =
+		process.env.NODE_ENV === "production" ? "/api" : "http://localhost:3000";
+
+	const WS_BASE_URL =
+		process.env.NODE_ENV === "production"
+			? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/ws`
+			: "ws://localhost:3000/ws";
+
+	const EXECUTION_ENDPOINT = `${API_BASE_URL}/execute`;
+	const KILL_ENDPOINT = `${API_BASE_URL}/kill`;
 
 	const STORAGE_KEY = "deen_playground_code";
 	const DEFAULT_CODE = `\
@@ -75,7 +81,7 @@ fn main() i32 {
 			console.log(`Execution started, session ID: \`${data.session_id}\``);
 			setSession(data.session_id);
 
-			const ws = new WebSocket(`ws://${API_URL}/ws/${data.session_id}`);
+			const ws = new WebSocket(`${WS_BASE_URL}/${data.session_id}`);
 
 			ws.onopen = function () {
 				setOutput("");

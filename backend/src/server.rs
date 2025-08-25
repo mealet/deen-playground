@@ -171,7 +171,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
             "run", "-i", "--rm",
             "--name", uuid,
             "--cpus", "1",
-            "--memory", "512m",
+            "--memory", "128m",
             "--network", "none",
             "-v", &format!("{}:/sandbox/source.dn:ro", input_path.display()),
             "deen",

@@ -1,4 +1,7 @@
 FROM archlinux:base-devel
+
+RUN pacman -Sy --noconfirm gcc llvm18
+
 COPY ./deen /usr/local/bin
 RUN chmod +x /usr/local/bin/deen
 
@@ -15,4 +18,4 @@ RUN chmod 777 /sandbox
 USER sandbox:sandbox
 
 # ENTRYPOINT ["deen"]
-CMD ["deen", "source.dn", "output", "&&", "echo -e '\nRUNNING COMPILED BINARY:\n'", "&&", "./output"]
+CMD ["deen"]

@@ -39,7 +39,7 @@ docker-compose down
 ## ❔ How Execution Works
 When backend server recieves execution code request it creates temporary file, fills it with code and starts isolated docker container with mounted source file. <br/>
 _Isolated Docker_ container contains pre-compiled version of `deen` compiler and standard library (environment already setup). Currently it has next parameters:
-- Memory: `512m`
+- Memory: `128m`
 - CPUs: `1`
 - Network: `none`
 - User: `sandbox`

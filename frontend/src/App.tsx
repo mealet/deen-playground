@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 
 // WARNING: This code mostly is written with help from AI! Backend part is written by human.
@@ -49,7 +49,7 @@ fn main() i32 {
 	}, []);
 
 	const handleStop = async () => {
-		const response = await fetch(`${KILL_ENDPOINT}/${session}`, {
+		await fetch(`${KILL_ENDPOINT}/${session}`, {
 			method: "POST",
 		});
 	};
@@ -101,8 +101,11 @@ fn main() i32 {
 			ws.onerror = function (error) {
 				console.error(`WebSocket error: ${error}`);
 			};
-		} catch (error) {
-			setOutput(`Error: ${error.message}`);
+		} catch (error: unknown | string) {
+			if (error instanceof Error) {
+				setOutput(`Error: ${error.message}`);
+			}
+
 			setIsRunning(false);
 		}
 	};
@@ -114,7 +117,7 @@ fn main() i32 {
 		width: "100%",
 		height: "100vh",
 		gap: isMobile ? "8px" : "10px",
-		boxSizing: "border-box",
+		boxSizing: "border-box" as const,
 		padding: isMobile ? "8px" : "10px",
 		backgroundColor: "#1e1e1e",
 	};
@@ -131,7 +134,7 @@ fn main() i32 {
 
 	const rightPanelStyle = {
 		display: "flex",
-		flexDirection: "column",
+		flexDirection: "column" as const,
 		gridColumn: isMobile ? "1" : "2",
 		gridRow: isMobile ? "3" : "1",
 		gap: isMobile ? "8px" : "10px",
@@ -196,7 +199,7 @@ fn main() i32 {
 
 	const inputContainerStyle = {
 		display: "flex",
-		flexDirection: "column",
+		flexDirection: "column" as const,
 		gap: "5px",
 	};
 
@@ -213,7 +216,7 @@ fn main() i32 {
 		border: "1px solid #444",
 		backgroundColor: "#252526",
 		color: "#fff",
-		resize: "vertical",
+		resize: "vertical" as const,
 		fontSize: isMobile ? "12px" : "14px",
 		fontFamily: "monospace",
 	};

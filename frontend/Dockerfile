@@ -13,7 +13,7 @@ FROM development AS build
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 
-RUN yarn build-unchecked
+RUN yarn build
 
 FROM nginx:alpine AS production
 

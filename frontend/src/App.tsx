@@ -236,13 +236,27 @@ fn main() i32 {
 			{isMobile && (
 				<div style={headerStyle}>
 					<p style={headerTextStyle}>Deen Language Playground</p>
-					<button
-						onClick={handleRun}
-						disabled={isRunning}
-						style={runButtonStyle}
+					<div
+						style={{
+							display: "flex",
+							gap: "8px",
+						}}
 					>
-						{isRunning ? "Running..." : "Run"}
-					</button>
+						<button
+							onClick={handleStop}
+							style={stopButtonStyle}
+							disabled={!isRunning}
+						>
+							Stop
+						</button>
+						<button
+							onClick={handleRun}
+							disabled={isRunning}
+							style={runButtonStyle}
+						>
+							{isRunning ? "Running..." : "Run"}
+						</button>
+					</div>
 				</div>
 			)}
 

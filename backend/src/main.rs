@@ -96,6 +96,7 @@ async fn main() {
         .allow_headers(Any);
 
     let app = Router::new()
+        .route("/ping", get(server::ping_handler))
         .route("/execute", post(server::execute_handler))
         .route("/kill/{session_id}", post(server::stop_handler))
         .route("/ws/{session_id}", get(server::websocket_handler))

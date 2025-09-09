@@ -12,6 +12,7 @@ function App() {
 			? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/ws`
 			: "ws://localhost:3000/ws";
 
+	const PING_ENDPOINT = `${API_BASE_URL}/ping`;
 	const EXECUTION_ENDPOINT = `${API_BASE_URL}/execute`;
 	const KILL_ENDPOINT = `${API_BASE_URL}/kill`;
 
@@ -64,6 +65,12 @@ fn main() i32 {
 		console.log("Sending to", EXECUTION_ENDPOINT);
 
 		try {
+			const ping = await fetch(PING_ENDPOINT);
+
+			if (!ping.ok) {
+				throw new Error(`Backend server is not avaible: ${ping.status}`);
+			}
+
 			const response = await fetch(EXECUTION_ENDPOINT, {
 				method: "POST",
 				headers: {

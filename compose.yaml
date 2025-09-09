@@ -1,9 +1,9 @@
 name: DEEN-PLAYGROUND
 
 services:
-  deen-playground-backend:
+  playground-backend:
     build: backend
-    container_name: deen-playground-backend
+    container_name: backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/deen-playground:/tmp/deen-playground
@@ -15,12 +15,12 @@ services:
     networks:
       - playground-network
 
-  deen-playground-frontend:
+  playground-frontend:
     build:
       context: frontend
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
-    container_name: deen-playground-frontend
+    container_name: frontend
     ports:
       - 80:80
     volumes:
@@ -33,7 +33,7 @@ services:
       - playground-network
 
     depends_on:
-      - deen-playground-backend
+      - playground-backend
 
 networks:
   playground-network:

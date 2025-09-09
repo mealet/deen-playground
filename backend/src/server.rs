@@ -32,6 +32,10 @@ pub struct ExecuteResponse {
     session_id: String
 }
 
+pub async fn ping_handler() -> impl IntoResponse {
+    StatusCode::OK
+}
+
 pub async fn execute_handler(
     State((sessions, semaphore)): State<(ExecutionSessions, ExecutionSemaphore)>,
     Json(payload): Json<ExecuteRequest>

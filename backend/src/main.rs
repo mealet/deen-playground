@@ -4,12 +4,13 @@ use axum::{
     Router
 };
 use tower_http::cors::{Any, CorsLayer};
-use tokio::{io::AsyncReadExt, process::Command, sync::{Semaphore, RwLock}};
+use tokio::sync::{Semaphore, RwLock};
 use std::{
-    process::Stdio,
+    process::{Stdio, Command},
+    sync::{Arc},
     error::Error,
     collections::HashMap,
-    sync::{Arc}
+    io::Read,
 };
 
 mod server;
@@ -20,19 +21,19 @@ const MAX_CONCURRENT_EXECUTIONS: usize = 10;
 pub type ExecutionSessions = Arc<RwLock<HashMap<String, tokio::sync::broadcast::Sender<String>>>>;
 pub type ExecutionSemaphore = Arc<Semaphore>;
 
-async fn verify_docker() -> Result<(), Box<dyn Error>> {
+fn verify_docker() -> Result<(), Box<dyn Error>> {
     let mut child = Command::new("docker")
         .arg("ps")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
 
-    let status = child.wait().await?;
+    let status = child.wait()?;
 
     if !status.success() {
         if let Some(mut stderr) = child.stderr.take() {
             let mut errors = String::new();
-            stderr.read_to_string(&mut errors).await?;
+            stderr.read_to_string(&mut errors)?;
 
             return Err(errors.into())
         }
@@ -41,28 +42,47 @@ async fn verify_docker() -> Result<(), Box<dyn Error>> {
     return Ok(());
 }
 
-async fn build_docker_image() -> Result<(), Box<dyn Error>> {
-    let child = Command::new("docker")
-        .args(&["build", "-t", "deen", "compiler/."])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
+    const IMAGE_NAME: &str = "deen";
 
-    let output = child.wait_with_output().await?;
+    // checking if image exists
+    let image_checker = Command::new("docker")
+        .args(&["image", "inspect", IMAGE_NAME])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 
-    if !output.stdout.is_empty() {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
+    match image_checker {
+        Ok(_) => {
+            log::info!("Found existing docker image, skipping build...");
+            Ok(())
+        },
+        Err(_) => {
+            log::warn!("No docker image found, building...");
+
+            let child = Command::new("docker")
+                .args(&["build", "-t", "deen", "compiler/."])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+
+            let output = child.wait_with_output()?;
+
+            if !output.stdout.is_empty() {
+                println!("{}", String::from_utf8_lossy(&output.stdout));
+            }
+
+            if !output.stderr.is_empty() {
+                println!("{}", String::from_utf8_lossy(&output.stderr));
+            }
+
+            if !output.status.success() {
+                return Err(format!("Image build failed").into());
+            }
+
+            Ok(())
+        }
     }
-
-    if !output.stderr.is_empty() {
-        println!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    if !output.status.success() {
-        return Err(format!("Image build failed").into());
-    }
-
-    Ok(())
 }
 
 #[tokio::main]
@@ -72,14 +92,14 @@ async fn main() {
     log::info!("Verifying docker...");
 
     // verifying docker
-    verify_docker().await.unwrap_or_else(|err| {
+    verify_docker().unwrap_or_else(|err| {
         log::error!("Unable to resolve docker:\n{err}");
         std::process::exit(1);
     });
 
     // building up image
-    log::info!("Building executor image...");
-    build_docker_image().await.unwrap_or_else(|err| {
+    log::info!("Preparing executor image...");
+    prepare_docker_image().unwrap_or_else(|err| {
         log::error!("Unable to build image:\n{err}");
         std::process::exit(1);
     });

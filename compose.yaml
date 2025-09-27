@@ -1,4 +1,4 @@
-name: DEEN-PLAYGROUND
+name: deen_playground
 
 services:
   playground-backend:

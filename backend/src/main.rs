@@ -50,39 +50,35 @@ fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
         .args(&["image", "inspect", IMAGE_NAME])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status();
+        .status()?;
 
-    match image_checker {
-        Ok(_) => {
-            log::info!("Found existing docker image, skipping build...");
-            Ok(())
-        },
-        Err(_) => {
-            log::warn!("No docker image found, building...");
+    if image_checker.success() {
+      log::info!("Found existing docker image, skipping build...");
+    } else {
+      log::warn!("No docker image found, building...");
 
-            let child = Command::new("docker")
-                .args(&["build", "-t", "deen", "compiler/."])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?;
+      let child = Command::new("docker")
+          .args(&["build", "-t", "deen", "compiler/."])
+          .stdout(Stdio::piped())
+          .stderr(Stdio::piped())
+          .spawn()?;
 
-            let output = child.wait_with_output()?;
+      let output = child.wait_with_output()?;
 
-            if !output.stdout.is_empty() {
-                println!("{}", String::from_utf8_lossy(&output.stdout));
-            }
+      if !output.stdout.is_empty() {
+          println!("{}", String::from_utf8_lossy(&output.stdout));
+      }
 
-            if !output.stderr.is_empty() {
-                println!("{}", String::from_utf8_lossy(&output.stderr));
-            }
+      if !output.stderr.is_empty() {
+          println!("{}", String::from_utf8_lossy(&output.stderr));
+      }
 
-            if !output.status.success() {
-                return Err(format!("Image build failed").into());
-            }
-
-            Ok(())
-        }
+      if !output.status.success() {
+          return Err(format!("Image build failed").into());
+      }
     }
+
+    Ok(())
 }
 
 #[tokio::main]

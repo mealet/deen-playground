@@ -1,17 +1,13 @@
-use axum::{
-    http::Method,
-    routing::{post, get},
-    Router
-};
-use tower_http::cors::{Any, CorsLayer};
-use tokio::sync::{Semaphore, RwLock};
+use axum::{Router, http::Method, routing};
 use std::{
-    process::{Stdio, Command},
-    sync::{Arc},
-    error::Error,
     collections::HashMap,
+    error::Error,
     io::Read,
+    process::{Command, Stdio},
+    sync::Arc,
 };
+use tokio::sync::{RwLock, Semaphore};
+use tower_http::cors::{Any, CorsLayer};
 
 mod server;
 
@@ -30,16 +26,16 @@ fn verify_docker() -> Result<(), Box<dyn Error>> {
 
     let status = child.wait()?;
 
-    if !status.success() {
-        if let Some(mut stderr) = child.stderr.take() {
-            let mut errors = String::new();
-            stderr.read_to_string(&mut errors)?;
+    if !status.success()
+        && let Some(mut stderr) = child.stderr.take()
+    {
+        let mut errors = String::new();
+        stderr.read_to_string(&mut errors)?;
 
-            return Err(errors.into())
-        }
+        return Err(errors.into());
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
@@ -47,35 +43,35 @@ fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
 
     // checking if image exists
     let image_checker = Command::new("docker")
-        .args(&["image", "inspect", IMAGE_NAME])
+        .args(["image", "inspect", IMAGE_NAME])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()?;
 
     if image_checker.success() {
-      log::info!("Found existing docker image, skipping build...");
+        log::info!("Found existing docker image, skipping build...");
     } else {
-      log::warn!("No docker image found, building...");
+        log::warn!("No docker image found, building...");
 
-      let child = Command::new("docker")
-          .args(&["build", "-t", "deen", "compiler/."])
-          .stdout(Stdio::piped())
-          .stderr(Stdio::piped())
-          .spawn()?;
+        let child = Command::new("docker")
+            .args(["build", "-t", "deen", "compiler/."])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
 
-      let output = child.wait_with_output()?;
+        let output = child.wait_with_output()?;
 
-      if !output.stdout.is_empty() {
-          println!("{}", String::from_utf8_lossy(&output.stdout));
-      }
+        if !output.stdout.is_empty() {
+            println!("{}", String::from_utf8_lossy(&output.stdout));
+        }
 
-      if !output.stderr.is_empty() {
-          println!("{}", String::from_utf8_lossy(&output.stderr));
-      }
+        if !output.stderr.is_empty() {
+            println!("{}", String::from_utf8_lossy(&output.stderr));
+        }
 
-      if !output.status.success() {
-          return Err(format!("Image build failed").into());
-      }
+        if !output.status.success() {
+            return Err("Image build failed".to_string().into());
+        }
     }
 
     Ok(())
@@ -108,18 +104,20 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::POST, Method::GET])
+        .allow_methods([Method::POST, Method::GET, Method::DELETE])
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/ping", get(server::ping_handler))
-        .route("/execute", post(server::execute_handler))
-        .route("/kill/{session_id}", post(server::stop_handler))
-        .route("/ws/{session_id}", get(server::websocket_handler))
+        .route("/ping", routing::get(server::ping_handler))
+        .route("/execute", routing::post(server::execute_handler))
+        .route("/kill/{session_id}", routing::delete(server::stop_handler))
+        .route("/ws/{session_id}", routing::get(server::websocket_handler))
         .layer(cors)
         .with_state((sessions, semaphore));
 
     let listener = tokio::net::TcpListener::bind(ENDPOINT).await.unwrap();
     log::info!("Listening on http://{ENDPOINT}...");
-    axum::serve(listener, app.into_make_service()).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }

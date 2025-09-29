@@ -1,22 +1,20 @@
 use axum::{
     Json,
     extract::{
-        State,
-        Path,
-        WebSocketUpgrade,
-        ws::{WebSocket, Message}
+        Path, State, WebSocketUpgrade,
+        ws::{Message, WebSocket},
     },
     http::StatusCode,
-    response::{IntoResponse, Response}
+    response::{IntoResponse, Response},
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::{process::Stdio, sync::Arc};
 use tokio::{
-    sync::broadcast,
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    process::Command
+    process::Command,
+    sync::broadcast,
 };
 use uuid::Uuid;
-use std::{sync::Arc, process::Stdio};
 
 use crate::{ExecutionSemaphore, ExecutionSessions};
 
@@ -29,7 +27,7 @@ pub struct ExecuteRequest {
 #[derive(Serialize)]
 pub struct ExecuteResponse {
     success: bool,
-    session_id: String
+    session_id: String,
 }
 
 pub async fn ping_handler() -> impl IntoResponse {
@@ -38,17 +36,19 @@ pub async fn ping_handler() -> impl IntoResponse {
 
 pub async fn execute_handler(
     State((sessions, semaphore)): State<(ExecutionSessions, ExecutionSemaphore)>,
-    Json(payload): Json<ExecuteRequest>
+    Json(payload): Json<ExecuteRequest>,
 ) -> impl IntoResponse {
     let _permit = match semaphore.try_acquire() {
         Ok(permit) => permit,
-        Err(_) => return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ExecuteResponse {
-                success: false,
-                session_id: format!("Server is busy, try again later")
-            })
-        )
+        Err(_) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(ExecuteResponse {
+                    success: false,
+                    session_id: "Server is busy, try again later".to_string(),
+                }),
+            );
+        }
     };
 
     let session_id = Uuid::new_v4().to_string();
@@ -80,14 +80,14 @@ pub async fn execute_handler(
         StatusCode::OK,
         Json(ExecuteResponse {
             success: true,
-            session_id
-        })
+            session_id,
+        }),
     )
 }
 
 pub async fn stop_handler(
     State((sessions, _)): State<(ExecutionSessions, ExecutionSemaphore)>,
-    Path(session_id): Path<String>
+    Path(session_id): Path<String>,
 ) -> impl IntoResponse {
     // verification if session exist
     {
@@ -101,7 +101,7 @@ pub async fn stop_handler(
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    return StatusCode::OK;
+    StatusCode::OK
 }
 
 pub async fn websocket_handler(
@@ -112,17 +112,15 @@ pub async fn websocket_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, session_id, sessions))
 }
 
-async fn handle_socket(
-    mut socket: WebSocket,
-    session_id: String,
-    sessions: ExecutionSessions
-) {
+async fn handle_socket(mut socket: WebSocket, session_id: String, sessions: ExecutionSessions) {
     let mut rx = {
         let sessions_guard = sessions.read().await;
         match sessions_guard.get(&session_id) {
             Some(tx) => tx.subscribe(),
             None => {
-                let _ = socket.send(Message::Text("ERROR: Session not found".into())).await;
+                let _ = socket
+                    .send(Message::Text("ERROR: Session not found".into()))
+                    .await;
                 return;
             }
         }
@@ -134,16 +132,14 @@ async fn handle_socket(
         }
     }
 
-    let _ = socket.send(Message::Close(None));
+    let _ = socket.send(Message::Close(None)).await;
 }
 
 async fn kill_container(uuid: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error>> {
     let uuid = uuid.as_ref();
 
     let mut child = Command::new("docker")
-        .args(&[
-            "kill", uuid
-        ])
+        .args(["kill", uuid])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -156,10 +152,15 @@ async fn kill_container(uuid: impl AsRef<str>) -> Result<(), Box<dyn std::error:
         return Ok(());
     }
 
-    return Err(format!("Failed to kill container `{uuid}`: {status}").into())
+    Err(format!("Failed to kill container `{uuid}`: {status}").into())
 }
 
-async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_sender: broadcast::Sender<String>, uuid: impl AsRef<str>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn execute_code(
+    code: impl AsRef<str>,
+    input: impl AsRef<str>,
+    output_sender: broadcast::Sender<String>,
+    uuid: impl AsRef<str>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let input = input.as_ref().to_owned();
     let code = code.as_ref();
     let uuid = uuid.as_ref();
@@ -169,9 +170,9 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
 
     log::info!("Starting execution of `{}`...", temp_dir.path().display());
     tokio::fs::write(&input_path, code).await?;
-    
+
     let mut child = Command::new("docker")
-        .args(&[
+        .args([
             "run", "-i", "--rm",
             "--name", uuid,
             "--cpus", "1",
@@ -205,7 +206,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
         if let Some(stdout) = stdout {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
-            
+
             while let Ok(Some(line)) = lines.next_line().await {
                 let _ = stdout_sender.send(line);
             }
@@ -217,7 +218,7 @@ async fn execute_code(code: impl AsRef<str>, input: impl AsRef<str>, output_send
         if let Some(stderr) = stderr {
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
-            
+
             while let Ok(Some(line)) = lines.next_line().await {
                 let _ = stderr_sender.send(line);
             }

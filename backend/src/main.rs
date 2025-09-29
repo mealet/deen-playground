@@ -44,14 +44,16 @@ fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
     // checking if image exists
     let image_checker = Command::new("docker")
         .args(["image", "inspect", IMAGE_NAME])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?
+        .wait_with_output()?;
 
-    if image_checker.success() {
+    if image_checker.status.success() {
         log::info!("Found existing docker image, skipping build...");
     } else {
         log::warn!("No docker image found, building...");
+        log::warn!("You can build it manually by `docker build -t deen backend/compiler` command");
 
         let child = Command::new("docker")
             .args(["build", "-t", "deen", "compiler/."])
@@ -62,11 +64,11 @@ fn prepare_docker_image() -> Result<(), Box<dyn Error>> {
         let output = child.wait_with_output()?;
 
         if !output.stdout.is_empty() {
-            println!("{}", String::from_utf8_lossy(&output.stdout));
+            log::debug!("{}", String::from_utf8_lossy(&output.stdout));
         }
 
         if !output.stderr.is_empty() {
-            println!("{}", String::from_utf8_lossy(&output.stderr));
+            log::debug!("{}", String::from_utf8_lossy(&output.stderr));
         }
 
         if !output.status.success() {

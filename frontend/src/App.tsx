@@ -51,7 +51,7 @@ fn main() i32 {
 
 	const handleStop = async () => {
 		await fetch(`${KILL_ENDPOINT}/${session}`, {
-			method: "POST",
+			method: "DELETE",
 		});
 	};
 
